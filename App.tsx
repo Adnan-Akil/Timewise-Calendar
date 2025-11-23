@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent, EventType, UserSettings, ViewMode } from './types';
 import CalendarView from './components/CalendarView';
@@ -7,6 +6,7 @@ import ChatInterface from './components/ChatInterface';
 import EditEventModal from './components/EditEventModal';
 import Tour from './components/Tour';
 import { CalendarIcon, CogIcon, ListIcon, SparklesIcon, PlusIcon } from './components/Icons';
+import { initializeGoogleApi, handleAuthClick, listUpcomingEvents, handleSignOut } from './services/googleCalendarService';
 
 const App: React.FC = () => {
   // --- State ---
@@ -32,6 +32,10 @@ const App: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   
+  // Google API State
+  const [isApiReady, setIsApiReady] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  
   // Event Editing State
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   
@@ -49,10 +53,54 @@ const App: React.FC = () => {
     document.documentElement.classList.add('dark');
   }, [settings]);
 
+  // Initialize Google API on mount
+  useEffect(() => {
+      // The service now handles polling internally, so we just call it once on mount
+      initializeGoogleApi(() => {
+          console.log("Google API Initialized successfully");
+          setIsApiReady(true);
+      });
+  }, []);
+
 
   // --- Handlers ---
-  const handleToggleGoogle = () => {
-    setSettings(prev => ({ ...prev, isGoogleConnected: !prev.isGoogleConnected }));
+  const handleToggleGoogle = async () => {
+    if (!isApiReady) {
+        alert("Google API not loaded yet. Check your internet connection or API keys.");
+        return;
+    }
+
+    if (settings.isGoogleConnected) {
+        // Disconnect Logic
+        handleSignOut();
+        setSettings(prev => ({ ...prev, isGoogleConnected: false }));
+        // Remove google events from state
+        setEvents(prev => prev.filter(e => !e.googleId));
+    } else {
+        // Connect Logic
+        try {
+            setIsSyncing(true);
+            const success = await handleAuthClick();
+            if (success) {
+                setSettings(prev => ({ ...prev, isGoogleConnected: true }));
+                
+                // Fetch events immediately after login
+                const googleEvents = await listUpcomingEvents();
+                
+                // Merge logic: Add new events, filtering duplicates
+                setEvents(prev => {
+                    const existingIds = new Set(prev.map(e => e.id));
+                    const newEvents = googleEvents.filter(ge => !existingIds.has(ge.id));
+                    return [...prev, ...newEvents];
+                });
+            }
+        } catch (error) {
+            console.error("Login failed", error);
+            alert("Failed to connect to Google Calendar. Check console for details.");
+        } finally {
+            setIsSyncing(false);
+        }
+    }
   };
 
   const handleAddEvent = (event: CalendarEvent) => {
@@ -106,7 +154,7 @@ const App: React.FC = () => {
                 <h1 className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.2em] mb-1">
                     {viewMode === ViewMode.WEEK ? 'Timeline' : 'Calendar'}
                 </h1>
-                <h2 className="text-3xl font-bold text-white tracking-tight animate-fade-in key={currentDate.getMonth()}">
+                <h2 className="text-3xl font-bold text-white tracking-tight animate-fade-in">
                     {currentDate.toLocaleString('default', { month: 'long' })}
                     <span className="text-neutral-600 ml-2 text-xl">{currentDate.getFullYear()}</span>
                 </h2>
@@ -193,9 +241,13 @@ const App: React.FC = () => {
                 
                 <div className="space-y-3">
                     {/* Google Sync */}
-                    <button onClick={handleToggleGoogle} className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${settings.isGoogleConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-neutral-900 border-neutral-800 hover:border-white/20'}`}>
+                    <button 
+                        onClick={handleToggleGoogle} 
+                        disabled={!isApiReady || isSyncing}
+                        className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${settings.isGoogleConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-neutral-900 border-neutral-800 hover:border-white/20'} ${isSyncing ? 'opacity-50' : ''}`}
+                    >
                         <span className={`font-medium ${settings.isGoogleConnected ? 'text-green-400' : 'text-neutral-300'}`}>
-                            {settings.isGoogleConnected ? 'Google Calendar Connected' : 'Connect Google Calendar'}
+                            {isSyncing ? 'Syncing...' : settings.isGoogleConnected ? 'Google Calendar Connected' : 'Connect Google Calendar'}
                         </span>
                         {settings.isGoogleConnected ? (
                              <div className="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full">ON</div>
@@ -231,7 +283,7 @@ const App: React.FC = () => {
                      </button>
 
                      <div className="pt-4 text-center">
-                        <p className="text-xs text-neutral-600">Mindful Planner v1.2.1</p>
+                        <p className="text-xs text-neutral-600">Timewise Calendar v1.2.1</p>
                      </div>
                 </div>
             </div>

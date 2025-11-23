@@ -1,5 +1,5 @@
 {
-  "name": "Mindful Planner",
+  "name": "Timewise Calendar",
   "description": "A premium, AI-powered calendar application for students with smart scheduling and analytics.",
   "requestFramePermissions": [
     "microphone"

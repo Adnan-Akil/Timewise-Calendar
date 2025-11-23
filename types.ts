@@ -17,6 +17,7 @@ export enum EventType {
 
 export interface CalendarEvent {
   id: string;
+  googleId?: string; // Added to distinguish Google events
   title: string;
   description?: string;
   start: Date;
