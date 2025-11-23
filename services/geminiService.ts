@@ -156,29 +156,3 @@ export const askCalendarAgent = async (
     return "I'm having trouble accessing the calendar intelligence right now.";
   }
 };
-
-export const generateAnalyticsInsight = async (events: CalendarEvent[]) => {
-   if (!apiKey) return null;
-   
-   const eventsContext = JSON.stringify(events.map(e => ({
-    type: e.type,
-    durationMinutes: (e.end.getTime() - e.start.getTime()) / 60000
-  })));
-
-  const prompt = `
-    Analyze this student's schedule data.
-    Return a short paragraph (max 2 sentences) summarizing their time allocation balance.
-    Are they studying enough? Too much social time?
-    Data: ${eventsContext}
-  `;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-    return response.text;
-  } catch (error) {
-    return null;
-  }
-}

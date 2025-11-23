@@ -38,9 +38,3 @@ export interface UserSettings {
   isGoogleConnected: boolean;
   hasCompletedTour: boolean;
 }
-
-export interface AnalyticsData {
-  name: string;
-  value: number;
-  color: string;
-}
