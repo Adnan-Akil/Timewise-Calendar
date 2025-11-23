@@ -45,6 +45,9 @@ const App: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
+  // Real-time Clock
+  const [now, setNow] = useState(new Date());
+
   // Google API State
   const [isApiReady, setIsApiReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -83,6 +86,14 @@ const App: React.FC = () => {
     document.documentElement.classList.add("dark");
   }, [settings]);
 
+  // Real-time clock ticker (updates every minute)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Initialize Google API on mount
   useEffect(() => {
     // The service now handles polling internally, so we just call it once on mount
@@ -116,16 +127,25 @@ const App: React.FC = () => {
           setSettings((prev) => ({ ...prev, isGoogleConnected: true }));
 
           // Fetch events immediately after login
-          const googleEvents = await listUpcomingEvents();
+          try {
+            const googleEvents = await listUpcomingEvents();
+            console.log(`Successfully fetched ${googleEvents.length} Google Calendar events`);
 
-          // Merge logic: Add new events, filtering duplicates
-          setEvents((prev) => {
-            const existingIds = new Set(prev.map((e) => e.id));
-            const newEvents = googleEvents.filter(
-              (ge) => !existingIds.has(ge.id)
-            );
-            return [...prev, ...newEvents];
-          });
+            // Merge logic: Add new events, filtering duplicates
+            setEvents((prev) => {
+              const existingIds = new Set(prev.map((e) => e.id));
+              const newEvents = googleEvents.filter(
+                (ge) => !existingIds.has(ge.id)
+              );
+              console.log(
+                `Merging ${newEvents.length} new events with ${prev.length} existing events`
+              );
+              return [...prev, ...newEvents];
+            });
+          } catch (fetchError) {
+            console.error("Failed to fetch calendar events:", fetchError);
+            alert("Connected to Google but couldn't fetch events. Check console.");
+          }
         }
       } catch (error) {
         console.error("Login failed", error);
@@ -203,6 +223,7 @@ const App: React.FC = () => {
           events={events}
           mode={viewMode}
           currentDate={currentDate}
+          now={now}
           onDateClick={handleDateSelect}
           onEventClick={(event) => setEditingEvent(event)}
         />

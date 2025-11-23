@@ -12,6 +12,7 @@ interface CalendarViewProps {
   events: CalendarEvent[];
   mode: ViewMode;
   currentDate: Date;
+  now: Date;
   onDateClick?: (date: Date) => void;
   onEventClick?: (event: CalendarEvent) => void;
 }
@@ -20,6 +21,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   events,
   mode,
   currentDate,
+  now,
   onDateClick,
   onEventClick,
 }) => {
@@ -106,8 +108,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 if (!date) return <div key={`empty-${i}`} />;
 
                 const dayEvents = getEventsForDay(date);
-                const isToday =
-                  date.toDateString() === new Date().toDateString();
+                const isToday = date.toDateString() === now.toDateString();
                 const isSelected = date.getDate() === currentDate.getDate();
 
                 return (
@@ -132,16 +133,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     </div>
                     {/* Event Indicators */}
                     <div className="flex gap-0.5 h-1 absolute -bottom-1">
-                      {dayEvents.slice(0, 3).map((e, idx) => (
-                        <div
-                          key={idx}
-                          className={`w-1 h-1 rounded-full ${
-                            e.type === EventType.CLASS
-                              ? "bg-blue-400"
-                              : "bg-[#FF9F5A]"
-                          }`}
-                        />
-                      ))}
+                      {dayEvents.slice(0, 3).map((e, idx) => {
+                        let indicatorColor = "bg-[#FF9F5A]"; // Default
+                        if (e.type === EventType.CLASS) indicatorColor = "bg-blue-400";
+                        if (e.type === EventType.MEETING) indicatorColor = "bg-purple-400";
+                        if (e.googleId) indicatorColor = "bg-red-400"; // Google Calendar events
+                        return (
+                          <div
+                            key={idx}
+                            className={`w-1 h-1 rounded-full ${indicatorColor}`}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -168,15 +171,28 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               <div
                 key={event.id}
                 onClick={() => onEventClick && onEventClick(event)}
-                className="bg-[#1C1C1E] p-4 rounded-2xl flex gap-4 items-center border border-white/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+                className="bg-[#1C1C1E] p-4 rounded-2xl flex gap-4 items-center border border-white/5 shadow-sm active:scale-[0.98] transition-transform cursor-pointer hover:border-white/10"
               >
-                <div className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center flex-none text-white font-bold border border-white/10">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-none text-white font-bold border"
+                  style={{
+                    backgroundColor: event.color ? `${event.color}15` : "#333",
+                    borderColor: event.color || "#555",
+                  }}
+                >
                   {event.title.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-white font-medium truncate text-sm">
-                    {event.title}
-                  </h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-white font-medium truncate text-sm">
+                      {event.title}
+                    </h4>
+                    {event.googleId && (
+                      <span className="text-[10px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full flex-shrink-0">
+                        Google
+                      </span>
+                    )}
+                  </div>
                   <p className="text-neutral-500 text-xs truncate mt-0.5">
                     {event.start.toLocaleTimeString([], {
                       hour: "numeric",
@@ -213,6 +229,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         getEventsForDay={getEventsForDay}
         onDateClick={onDateClick}
         onEventClick={onEventClick}
+        now={now}
       />
     );
   }
@@ -227,6 +244,7 @@ const InfiniteTimelineView = ({
   getEventsForDay,
   onDateClick,
   onEventClick,
+  now,
 }: any) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [timelineDays, setTimelineDays] = useState<Date[]>([]);
@@ -346,7 +364,7 @@ const InfiniteTimelineView = ({
   };
 
   const jumpToToday = () => {
-    const today = new Date();
+    const today = new Date(now);
 
     // Reset timeline days around today
     const newDays = [];
@@ -377,7 +395,7 @@ const InfiniteTimelineView = ({
         <div className="space-y-8 sm:space-y-12">
           {timelineDays.map((day, idx) => {
             const dayEvents = getEventsForDay(day);
-            const isToday = day.toDateString() === new Date().toDateString();
+            const isToday = day.toDateString() === now.toDateString();
 
             return (
               <div
@@ -410,7 +428,14 @@ const InfiniteTimelineView = ({
                 {/* Divider Line */}
                 <div className="w-px bg-neutral-800 relative mt-3 mb-4 flex-none">
                   {dayEvents.length > 0 && (
-                    <div className="absolute top-0 -left-[3px] w-2 h-2 bg-[#FF9F5A] rounded-full ring-4 ring-black" />
+                    <div
+                      className="absolute top-0 -left-[3px] w-2 h-2 rounded-full ring-4 ring-black"
+                      style={{
+                        backgroundColor: dayEvents.some((e) => e.googleId)
+                          ? "#ef4444"
+                          : "#FF9F5A",
+                      }}
+                    />
                   )}
                 </div>
 
@@ -422,57 +447,71 @@ const InfiniteTimelineView = ({
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {dayEvents.map((event: CalendarEvent, eIdx: number) => (
-                        <div
-                          key={event.id}
-                          className="relative group/item cursor-pointer"
-                          onClick={() => onEventClick && onEventClick(event)}
-                        >
-                          {isToday && eIdx === 0 && (
-                            <div className="flex items-center gap-2 mb-2 animate-pulse">
-                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                              <span className="text-red-500 text-[10px] font-bold uppercase tracking-widest">
-                                Now
-                              </span>
-                            </div>
-                          )}
+                      {dayEvents.map((event: CalendarEvent, eIdx: number) => {
+                        const isCurrent = now >= event.start && now < event.end;
+                        const isPast = now >= event.end;
 
-                          <div className="flex items-start justify-between pr-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xl sm:text-2xl font-bold text-white mb-1 tracking-tight leading-tight">
-                                <span className="tabular-nums tracking-tighter">
-                                  {event.start
-                                    .toLocaleTimeString([], {
-                                      hour: "numeric",
-                                      minute: "2-digit",
-                                    })
-                                    .toLowerCase()
-                                    .replace(" ", "")}
-                                </span>
-                                <span className="text-neutral-600 mx-1 font-light">
-                                  |
-                                </span>
-                                <span className="tabular-nums text-neutral-400 tracking-tighter">
-                                  {event.end
-                                    .toLocaleTimeString([], {
-                                      hour: "numeric",
-                                      minute: "2-digit",
-                                    })
-                                    .toLowerCase()
-                                    .replace(" ", "")}
+                        return (
+                          <div
+                            key={event.id}
+                            className={`relative group/item cursor-pointer transition-all duration-300 ${
+                              isPast ? "opacity-50 grayscale" : ""
+                            }`}
+                            onClick={() => onEventClick && onEventClick(event)}
+                          >
+                            {isCurrent && (
+                              <div className="flex items-center gap-2 mb-2 animate-pulse">
+                                <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                                <span className="text-red-500 text-[10px] font-bold uppercase tracking-widest">
+                                  Happening Now
                                 </span>
                               </div>
-                              <div className="text-neutral-300 font-medium text-base sm:text-lg truncate pr-4">
-                                {event.title}
+                            )}
+
+                            <div className="flex items-start justify-between pr-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xl sm:text-2xl font-bold text-white mb-1 tracking-tight leading-tight">
+                                  <span className="tabular-nums tracking-tighter">
+                                    {event.start
+                                      .toLocaleTimeString([], {
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                      })
+                                      .toLowerCase()
+                                      .replace(" ", "")}
+                                  </span>
+                                  <span className="text-neutral-600 mx-1 font-light">
+                                    |
+                                  </span>
+                                  <span className="tabular-nums text-neutral-400 tracking-tighter">
+                                    {event.end
+                                      .toLocaleTimeString([], {
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                      })
+                                      .toLowerCase()
+                                      .replace(" ", "")}
+                                  </span>
+                                </div>
+                                <div className="text-neutral-300 font-medium text-base sm:text-lg truncate pr-4">
+                                  {event.title}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-neutral-600 text-xs font-medium uppercase tracking-wider">
+                                    {event.type}
+                                  </span>
+                                  {event.googleId && (
+                                    <span className="text-[9px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded">
+                                      Google
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="text-neutral-600 text-xs font-medium uppercase tracking-wider mt-1">
-                                {event.type}
-                              </div>
+                              <ChevronRightIcon className="w-5 h-5 text-neutral-700 group-hover/item:text-white transition-colors" />
                             </div>
-                            <ChevronRightIcon className="w-5 h-5 text-neutral-700 group-hover/item:text-white transition-colors" />
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -491,9 +530,7 @@ const InfiniteTimelineView = ({
       >
         <div className="relative w-4 h-4 border border-current rounded-[1px] flex items-center justify-center">
           <div className="w-2 h-[1px] bg-current absolute top-[3px]"></div>
-          <div className="text-[6px] font-bold mt-1">
-            {new Date().getDate()}
-          </div>
+          <div className="text-[6px] font-bold mt-1">{now.getDate()}</div>
         </div>
       </button>
     </div>

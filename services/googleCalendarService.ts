@@ -4,7 +4,7 @@ import { CalendarEvent, EventType } from "../types";
 // Get credentials from environment variables
 const CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "YOUR_GOOGLE_API_KEY";
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || "YOUR_GOOGLE_API_KEY";
 
 // Discovery doc URL for APIs used by the quickstart
 const DISCOVERY_DOC =
@@ -17,10 +17,25 @@ const SCOPES = "https://www.googleapis.com/auth/calendar.events.readonly";
 let tokenClient: any;
 let gapiInited = false;
 let gisInited = false;
+let calendarApiLoaded = false;
 
 // Global type definition hack for gapi/google since we don't have @types installed in this env
 declare var gapi: any;
 declare var google: any;
+
+const loadCalendarApi = async () => {
+  if (calendarApiLoaded) return;
+  try {
+    if (gapi && gapi.client) {
+      // Load the calendar API discovery document
+      await gapi.client.load("calendar", "v3");
+      calendarApiLoaded = true;
+      console.log("Calendar API loaded successfully");
+    }
+  } catch (e) {
+    console.error("Error loading calendar API:", e);
+  }
+};
 
 export const initializeGoogleApi = (callback: () => void) => {
   // Check if credentials are configured
@@ -52,6 +67,9 @@ export const initializeGoogleApi = (callback: () => void) => {
           if (gisInited) callback();
         } catch (e) {
           console.error("Error initializing GAPI client:", e);
+          // Don't reject, allow GIS to work independently
+          gapiInited = true; // Mark as attempted
+          if (gisInited) callback();
         }
       });
     }
@@ -84,6 +102,7 @@ export const initializeGoogleApi = (callback: () => void) => {
     if (gapiInited && gisInited) {
       clearInterval(interval);
       console.log("Both GAPI and GIS are initialized");
+      callback();
     } else {
       checkGapi();
       checkGis();
@@ -91,7 +110,13 @@ export const initializeGoogleApi = (callback: () => void) => {
   }, 500);
 
   // Stop polling after 10 seconds to avoid infinite checking
-  setTimeout(() => clearInterval(interval), 10000);
+  setTimeout(() => {
+    clearInterval(interval);
+    if (gisInited || gapiInited) {
+      console.log("Initialization completed with available services");
+      callback();
+    }
+  }, 10000);
 };
 
 export const handleAuthClick = async (): Promise<boolean> => {
@@ -121,7 +146,15 @@ export const handleAuthClick = async (): Promise<boolean> => {
         return;
       }
       console.log("OAuth token obtained successfully");
-      resolve(true);
+      
+      // Load calendar API after successful authentication
+      try {
+        await loadCalendarApi();
+        resolve(true);
+      } catch (e) {
+        console.error("Failed to load calendar API after auth:", e);
+        reject(e);
+      }
     };
 
     if (gapi.client.getToken() === null) {
@@ -176,6 +209,22 @@ const mapGoogleEventToAppEvent = (gEvent: any): CalendarEvent => {
 
 export const listUpcomingEvents = async (): Promise<CalendarEvent[]> => {
   try {
+    // Ensure calendar API is loaded
+    if (!calendarApiLoaded) {
+      await loadCalendarApi();
+    }
+
+    // Verify GAPI is ready and has calendar API loaded
+    if (!gapi || !gapi.client || !gapi.client.calendar) {
+      console.error("GAPI client or calendar API not loaded - attempting to reload");
+      await loadCalendarApi();
+      
+      if (!gapi || !gapi.client || !gapi.client.calendar) {
+        console.error("Calendar API still not available after reload attempt");
+        return [];
+      }
+    }
+
     const request = {
       calendarId: "primary",
       timeMin: new Date().toISOString(),
@@ -183,21 +232,27 @@ export const listUpcomingEvents = async (): Promise<CalendarEvent[]> => {
       singleEvents: true,
       maxResults: 50,
       orderBy: "startTime",
-      // CRITICAL: This parameter limits the response to strictly the fields we need.
-      // This minimizes data transfer and ensures no unwanted PII is fetched.
-      fields: "items(id, summary, description, start, end)",
     };
 
     const response = await gapi.client.calendar.events.list(request);
-    const events = response.result.items;
-
-    if (!events || events.length === 0) {
+    
+    // Check if response has the expected structure
+    if (!response || !response.result) {
+      console.warn("No response from Google Calendar API");
       return [];
     }
 
+    const events = response.result.items;
+
+    if (!events || events.length === 0) {
+      console.log("No upcoming events found");
+      return [];
+    }
+
+    console.log(`Fetched ${events.length} events from Google Calendar`);
     return events.map(mapGoogleEventToAppEvent);
   } catch (err) {
-    console.error("Error fetching Google Calendar events", err);
+    console.error("Error fetching Google Calendar events:", err);
     return [];
   }
 };
