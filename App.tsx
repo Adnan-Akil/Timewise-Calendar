@@ -24,20 +24,18 @@ const App: React.FC = () => {
   // --- State ---
   const [settings, setSettings] = useState<UserSettings>(() => {
     try {
-      const saved = localStorage.getItem("regalPlanSettings");
-      return saved
-        ? JSON.parse(saved)
-        : {
-            theme: "dark",
+        const saved = localStorage.getItem('regalPlanSettings');
+        return saved ? JSON.parse(saved) : {
+            theme: 'dark',
             isGoogleConnected: false,
-            hasCompletedTour: false,
-          };
+            hasCompletedTour: false
+        };
     } catch (e) {
-      return {
-        theme: "dark",
-        isGoogleConnected: false,
-        hasCompletedTour: false,
-      };
+        return {
+            theme: 'dark',
+            isGoogleConnected: false,
+            hasCompletedTour: false
+        };
     }
   });
 
@@ -52,39 +50,22 @@ const App: React.FC = () => {
   // Google API State
   const [isApiReady, setIsApiReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-
+  
   // Event Editing State
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-
+  
   // Initial Mock Events
   const [events, setEvents] = useState<CalendarEvent[]>([
-    {
-      id: "1",
-      title: "Weekly Leadership",
-      type: EventType.MEETING,
-      start: new Date(new Date().setHours(11, 0, 0, 0)),
-      end: new Date(new Date().setHours(11, 30, 0, 0)),
-    },
-    {
-      id: "2",
-      title: "Product Strategy",
-      type: EventType.MEETING,
-      start: new Date(new Date().setHours(13, 0, 0, 0)),
-      end: new Date(new Date().setHours(15, 0, 0, 0)),
-    },
-    {
-      id: "3",
-      title: "Kick-Off",
-      type: EventType.WORK,
-      start: new Date(new Date().setDate(new Date().getDate() + 2)),
-      end: new Date(new Date().setDate(new Date().getDate() + 2)),
-    },
+    { id: '1', title: 'Weekly Leadership', type: EventType.MEETING, start: new Date(new Date().setHours(11,0,0,0)), end: new Date(new Date().setHours(11,30,0,0)) },
+    { id: '2', title: 'Product Strategy', type: EventType.MEETING, start: new Date(new Date().setHours(13,0,0,0)), end: new Date(new Date().setHours(15,0,0,0)) },
+    { id: '3', title: 'Kick-Off', type: EventType.WORK, start: new Date(new Date().setDate(new Date().getDate() + 2)), end: new Date(new Date().setDate(new Date().getDate() + 2)) }
   ] as any);
+
 
   // --- Effects ---
   useEffect(() => {
-    localStorage.setItem("regalPlanSettings", JSON.stringify(settings));
-    document.documentElement.classList.add("dark");
+    localStorage.setItem('regalPlanSettings', JSON.stringify(settings));
+    document.documentElement.classList.add('dark');
   }, [settings]);
 
   // Real-time clock ticker (updates every minute)
@@ -97,11 +78,11 @@ const App: React.FC = () => {
 
   // Initialize Google API on mount
   useEffect(() => {
-    // The service now handles polling internally, so we just call it once on mount
-    initializeGoogleApi(() => {
-      console.log("Google API Initialized successfully");
-      setIsApiReady(true);
-    });
+      // The service now handles polling internally, so we just call it once on mount
+      initializeGoogleApi(() => {
+          console.log("Google API Initialized successfully");
+          setIsApiReady(true);
+      });
   }, []);
 
   // Auto-sync on load if already authenticated
@@ -151,18 +132,16 @@ const App: React.FC = () => {
   // --- Handlers ---
   const handleToggleGoogle = async () => {
     if (!isApiReady) {
-      alert(
-        "Google API not loaded yet. Check your internet connection or API keys."
-      );
-      return;
+        alert("Google API not loaded yet. Check your internet connection or API keys.");
+        return;
     }
 
     if (settings.isGoogleConnected) {
-      // Disconnect Logic
-      handleSignOut();
-      setSettings((prev) => ({ ...prev, isGoogleConnected: false }));
-      // Remove google events from state
-      setEvents((prev) => prev.filter((e) => !e.googleId));
+        // Disconnect Logic
+        handleSignOut();
+        setSettings(prev => ({ ...prev, isGoogleConnected: false }));
+        // Remove google events from state
+        setEvents(prev => prev.filter(e => !e.googleId));
     } else {
       // Connect Logic
       try {
@@ -208,29 +187,27 @@ const App: React.FC = () => {
   };
 
   const handleAddEvent = (event: CalendarEvent) => {
-    setEvents((prev) => [...prev, event]);
+    setEvents(prev => [...prev, event]);
   };
 
   const handleUpdateEvent = (updatedEvent: CalendarEvent) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === updatedEvent.id ? updatedEvent : e))
-    );
+      setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
   };
 
   const handleDeleteEvent = (eventId: string) => {
-    setEvents((prev) => prev.filter((e) => e.id !== eventId));
+      setEvents(prev => prev.filter(e => e.id !== eventId));
   };
 
   const completeTour = () => {
-    setSettings((prev) => ({ ...prev, hasCompletedTour: true }));
+    setSettings(prev => ({ ...prev, hasCompletedTour: true }));
     // Reset view to Week/Timeline after tour
     setViewMode(ViewMode.WEEK);
     setIsChatOpen(false);
   };
-
+  
   const handleTourViewChange = (mode: ViewMode, chat: boolean) => {
-    setViewMode(mode);
-    setIsChatOpen(chat);
+      setViewMode(mode);
+      setIsChatOpen(chat);
   };
 
   const handleDateSelect = (date: Date) => {
@@ -238,31 +215,33 @@ const App: React.FC = () => {
   };
 
   const mockAction = (msg: string) => {
-    alert(msg); // Simple feedback
+      alert(msg); // Simple feedback
   };
 
   // --- Render ---
   return (
     <div className="h-full w-full bg-black text-white font-sans relative flex flex-col supports-[height:100dvh]:h-[100dvh]">
+      
       {/* Onboarding Tour */}
       {!settings.hasCompletedTour && (
-        <Tour onComplete={completeTour} onViewChange={handleTourViewChange} />
+        <Tour 
+            onComplete={completeTour} 
+            onViewChange={handleTourViewChange}
+        />
       )}
 
       {/* Header */}
       <header className="flex-none pt-safe px-6 pb-2 bg-black/80 backdrop-blur-md z-30 sticky top-0 border-b border-white/5">
         <div className="flex justify-between items-end pt-4 md:pt-6 pb-2">
-          <div>
-            <h1 className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.2em] mb-1">
-              {viewMode === ViewMode.WEEK ? "Timeline" : "Calendar"}
-            </h1>
-            <h2 className="text-3xl font-bold text-white tracking-tight animate-fade-in">
-              {currentDate.toLocaleString("default", { month: "long" })}
-              <span className="text-neutral-600 ml-2 text-xl">
-                {currentDate.getFullYear()}
-              </span>
-            </h2>
-          </div>
+            <div>
+                <h1 className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.2em] mb-1">
+                    {viewMode === ViewMode.WEEK ? 'Timeline' : 'Calendar'}
+                </h1>
+                <h2 className="text-3xl font-bold text-white tracking-tight animate-fade-in">
+                    {currentDate.toLocaleString('default', { month: 'long' })}
+                    <span className="text-neutral-600 ml-2 text-xl">{currentDate.getFullYear()}</span>
+                </h2>
+            </div>
         </div>
       </header>
 
@@ -280,69 +259,43 @@ const App: React.FC = () => {
 
       {/* Mobile Bottom Navigation Bar */}
       <div className="flex-none bg-[#121212]/95 backdrop-blur-xl border-t border-white/5 pb-safe z-40">
-        <div className="h-20 w-full max-w-lg mx-auto grid grid-cols-5 items-center justify-items-center px-2">
-          {/* 1. Month */}
-          <button
-            onClick={() => setViewMode(ViewMode.MONTH)}
-            className={`flex flex-col items-center gap-1 transition-colors p-2 ${
-              viewMode === ViewMode.MONTH ? "text-white" : "text-neutral-600"
-            }`}
-          >
-            <CalendarIcon className="w-6 h-6 stroke-[1.5]" />
-            <span className="text-[10px] font-medium">Month</span>
-          </button>
+         <div className="h-20 w-full max-w-lg mx-auto grid grid-cols-5 items-center justify-items-center px-2">
+             
+             {/* 1. Month */}
+             <button onClick={() => setViewMode(ViewMode.MONTH)} className={`flex flex-col items-center gap-1 transition-colors p-2 ${viewMode === ViewMode.MONTH ? 'text-white' : 'text-neutral-600'}`}>
+                 <CalendarIcon className="w-6 h-6 stroke-[1.5]" />
+                 <span className="text-[10px] font-medium">Month</span>
+             </button>
 
-          {/* 2. Timeline */}
-          <button
-            onClick={() => setViewMode(ViewMode.WEEK)}
-            className={`flex flex-col items-center gap-1 transition-colors p-2 ${
-              viewMode === ViewMode.WEEK ? "text-white" : "text-neutral-600"
-            }`}
-          >
-            <ListIcon className="w-6 h-6 stroke-[1.5]" />
-            <span className="text-[10px] font-medium">Timeline</span>
-          </button>
+             {/* 2. Timeline */}
+             <button onClick={() => setViewMode(ViewMode.WEEK)} className={`flex flex-col items-center gap-1 transition-colors p-2 ${viewMode === ViewMode.WEEK ? 'text-white' : 'text-neutral-600'}`}>
+                 <ListIcon className="w-6 h-6 stroke-[1.5]" />
+                 <span className="text-[10px] font-medium">Timeline</span>
+             </button>
 
-          {/* 3. CENTER: Smart Add (Inline) */}
-          <div className="flex items-center justify-center -mt-2.5">
-            <SmartScheduler
-              events={events}
-              onAddEvent={handleAddEvent}
-              onNavigate={handleDateSelect}
-            />
-          </div>
+             {/* 3. CENTER: Smart Add (Inline) */}
+             <div className="flex items-center justify-center -mt-2.5">
+                  <SmartScheduler events={events} onAddEvent={handleAddEvent} onNavigate={handleDateSelect} />
+             </div>
 
-          {/* 4. AI Chat */}
-          <button
-            onClick={() => setIsChatOpen(true)}
-            className={`flex flex-col items-center gap-1 transition-colors p-2 ${
-              isChatOpen ? "text-white" : "text-neutral-600"
-            }`}
-          >
-            <SparklesIcon className="w-6 h-6 stroke-[1.5]" />
-            <span className="text-[10px] font-medium">Assistant</span>
-          </button>
+             {/* 4. AI Chat */}
+             <button onClick={() => setIsChatOpen(true)} className={`flex flex-col items-center gap-1 transition-colors p-2 ${isChatOpen ? 'text-white' : 'text-neutral-600'}`}>
+                 <SparklesIcon className="w-6 h-6 stroke-[1.5]" />
+                 <span className="text-[10px] font-medium">Assistant</span>
+             </button>
 
-          {/* 5. Settings */}
-          <button
-            onClick={() => setShowSettingsModal(true)}
-            className={`flex flex-col items-center gap-1 transition-colors p-2 ${
-              showSettingsModal ? "text-white" : "text-neutral-600"
-            }`}
-          >
-            <CogIcon className="w-6 h-6 stroke-[1.5]" />
-            <span className="text-[10px] font-medium">Settings</span>
-          </button>
-        </div>
+             {/* 5. Settings */}
+             <button onClick={() => setShowSettingsModal(true)} className={`flex flex-col items-center gap-1 transition-colors p-2 ${showSettingsModal ? 'text-white' : 'text-neutral-600'}`}>
+                 <CogIcon className="w-6 h-6 stroke-[1.5]" />
+                 <span className="text-[10px] font-medium">Settings</span>
+             </button>
+
+         </div>
       </div>
 
-      <ChatInterface
-        events={events}
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-      />
-
-      <EditEventModal
+      <ChatInterface events={events} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      
+      <EditEventModal 
         event={editingEvent}
         isOpen={!!editingEvent}
         onClose={() => setEditingEvent(null)}
@@ -502,6 +455,7 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

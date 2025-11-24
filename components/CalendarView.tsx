@@ -14,6 +14,7 @@ interface CalendarViewProps {
   mode: ViewMode;
   currentDate: Date;
   now: Date;
+  now: Date;
   onDateClick?: (date: Date) => void;
   onEventClick?: (event: CalendarEvent) => void;
 }
@@ -49,14 +50,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   }, { threshold: 50, velocityThreshold: 0.3 });
 
   const getEventsForDay = (date: Date) => {
-    return events
-      .filter(
-        (e) =>
-          e.start.getDate() === date.getDate() &&
-          e.start.getMonth() === date.getMonth() &&
-          e.start.getFullYear() === date.getFullYear()
-      )
-      .sort((a, b) => a.start.getTime() - b.start.getTime());
+    return events.filter(e => 
+      e.start.getDate() === date.getDate() &&
+      e.start.getMonth() === date.getMonth() &&
+      e.start.getFullYear() === date.getFullYear()
+    ).sort((a,b) => a.start.getTime() - b.start.getTime());
   };
 
   const daysInMonth = useMemo(() => {
@@ -65,9 +63,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     const date = new Date(year, month, 1);
     const days = [];
     const firstDayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1; // Mon start
-
-    for (let i = 0; i < firstDayIndex; i++) days.push(null);
-
+    
+    for(let i=0; i<firstDayIndex; i++) days.push(null);
+    
     while (date.getMonth() === month) {
       days.push(new Date(date));
       date.setDate(date.getDate() + 1);
@@ -77,10 +75,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   const changeMonth = (offset: number) => {
     if (onDateClick) {
-      const newDate = new Date(currentDate);
-      newDate.setDate(1);
-      newDate.setMonth(newDate.getMonth() + offset);
-      onDateClick(newDate);
+        const newDate = new Date(currentDate);
+        newDate.setDate(1); 
+        newDate.setMonth(newDate.getMonth() + offset);
+        onDateClick(newDate);
     }
   };
 
@@ -90,40 +88,34 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       <div className="h-full flex flex-col animate-in fade-in duration-300">
         {/* Calendar Widget */}
         <div className="px-4 mb-6">
-          <div className="bg-[#1C1C1E] rounded-3xl p-6 shadow-2xl mx-auto w-full border border-white/5 flex flex-col">
-            {/* Header Date */}
-            <div className="flex justify-between items-center mb-6">
-              <button
-                onClick={() => changeMonth(-1)}
-                className="text-neutral-500 hover:text-white p-2"
-              >
-                &larr;
-              </button>
-              <div className="text-white font-medium text-lg">
-                {currentDate.toLocaleString("default", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </div>
-              <button
-                onClick={() => changeMonth(1)}
-                className="text-neutral-500 hover:text-white p-2"
-              >
-                &rarr;
-              </button>
-            </div>
-
-            {/* Days Header */}
-            <div className="grid grid-cols-7 mb-4">
-              {["M", "T", "W", "T", "F", "S", "S"].map((day, idx) => (
-                <div
-                  key={`day-${idx}`}
-                  className="text-center text-neutral-500 text-xs font-bold tracking-wider"
-                >
-                  {day}
+            <div className="bg-[#1C1C1E] rounded-3xl p-6 shadow-2xl mx-auto w-full border border-white/5 flex flex-col">
+                {/* Header Date */}
+                <div className="flex justify-between items-center mb-6">
+                    <button 
+                        onClick={() => changeMonth(-1)}
+                        className="text-neutral-500 hover:text-white p-2"
+                    >
+                    &larr;
+                    </button>
+                    <div className="text-white font-medium text-lg">
+                        {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                    </div>
+                    <button 
+                        onClick={() => changeMonth(1)}
+                        className="text-neutral-500 hover:text-white p-2"
+                    >
+                    &rarr;
+                    </button>
                 </div>
-              ))}
-            </div>
+
+                {/* Days Header */}
+                <div className="grid grid-cols-7 mb-4">
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(day => (
+                        <div key={day} className="text-center text-neutral-500 text-xs font-bold tracking-wider">
+                            {day}
+                        </div>
+                    ))}
+                </div>
 
             {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-y-4 sm:gap-y-6">
@@ -389,11 +381,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   // --- TIMELINE VIEW ---
   if (mode === ViewMode.WEEK) {
-    return (
-      <InfiniteTimelineView
-        currentDate={currentDate}
-        events={events}
-        getEventsForDay={getEventsForDay}
+    return <InfiniteTimelineView 
+        currentDate={currentDate} 
+        events={events} 
+        getEventsForDay={getEventsForDay} 
         onDateClick={onDateClick}
         onEventClick={onEventClick}
         now={now}
@@ -423,36 +414,36 @@ const InfiniteTimelineView = ({
   const lastScrollTopRef = useRef<number>(0);
   const isRapidScrollingRef = useRef(false);
 
-  // Initial Load & Reset on explicit external Date change (if needed)
-  useEffect(() => {
-    // Initialize with a buffer around currentDate
-    const initialDays = [];
-    for (let i = -14; i <= 21; i++) {
-      const d = new Date(currentDate);
-      d.setDate(d.getDate() + i);
-      initialDays.push(d);
-    }
-    setTimelineDays(initialDays);
+    // Initial Load & Reset on explicit external Date change (if needed)
+    useEffect(() => {
+        // Initialize with a buffer around currentDate
+        const initialDays = [];
+        for (let i = -14; i <= 21; i++) {
+            const d = new Date(currentDate);
+            d.setDate(d.getDate() + i);
+            initialDays.push(d);
+        }
+        setTimelineDays(initialDays);
+        
+        // Scroll to center initially
+        setTimeout(() => {
+            scrollToDate(currentDate, 'instant');
+        }, 50);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); 
 
-    // Scroll to center initially
-    setTimeout(() => {
-      scrollToDate(currentDate, "instant");
-    }, 50);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const scrollToDate = (date: Date, behavior: ScrollBehavior = "smooth") => {
-    if (!containerRef.current) return;
-    const dateStr = date.toDateString();
-    const el = containerRef.current.querySelector(`[data-date="${dateStr}"]`);
-    if (el) {
-      el.scrollIntoView({ block: "start", behavior });
-      // Small correction for padding/header
-      if (behavior === "instant") {
-        containerRef.current.scrollTop -= 20;
-      }
-    }
-  };
+    const scrollToDate = (date: Date, behavior: ScrollBehavior = 'smooth') => {
+        if (!containerRef.current) return;
+        const dateStr = date.toDateString();
+        const el = containerRef.current.querySelector(`[data-date="${dateStr}"]`);
+        if (el) {
+            el.scrollIntoView({ block: 'start', behavior });
+            // Small correction for padding/header
+            if (behavior === 'instant') {
+               containerRef.current.scrollTop -= 20;
+            }
+        }
+    };
 
   // Handle Prepend Scroll Restoration using anchor element
   useLayoutEffect(() => {
@@ -591,11 +582,11 @@ const InfiniteTimelineView = ({
     // Update header
     if (onDateClick) onDateClick(today);
 
-    // Force scroll after render
-    setTimeout(() => {
-      scrollToDate(today, "smooth");
-    }, 100);
-  };
+        // Force scroll after render
+        setTimeout(() => {
+            scrollToDate(today, 'smooth');
+        }, 100);
+    };
 
   return (
     <div className="h-full relative animate-in slide-in-from-right-4 duration-300">
@@ -609,33 +600,23 @@ const InfiniteTimelineView = ({
             const dayEvents = getEventsForDay(day);
             const isToday = day.toDateString() === now.toDateString();
 
-            return (
-              <div
-                key={day.toISOString()}
-                data-date={day.toDateString()}
-                className="flex gap-4 sm:gap-6 group min-h-[100px]"
-              >
-                {/* Left: Giant Number */}
-                <div className="w-16 sm:w-24 flex-none text-right pt-1">
-                  <div
-                    className={`text-5xl sm:text-7xl font-black tracking-tighter leading-none font-display transition-colors
-                                        ${
-                                          isToday
-                                            ? "text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
-                                            : "text-neutral-800 group-hover:text-neutral-700"
-                                        }
-                                    `}
-                  >
-                    {day.getDate()}
-                  </div>
-                  <div
-                    className={`text-xs font-bold uppercase tracking-wider mt-1 mr-1 ${
-                      isToday ? "text-white" : "text-neutral-600"
-                    }`}
-                  >
-                    {day.toLocaleDateString("default", { weekday: "short" })}
-                  </div>
-                </div>
+                        return (
+                            <div 
+                                key={day.toISOString()} 
+                                data-date={day.toDateString()}
+                                className="flex gap-4 sm:gap-6 group min-h-[100px]"
+                            >
+                                {/* Left: Giant Number */}
+                                <div className="w-16 sm:w-24 flex-none text-right pt-1">
+                                    <div className={`text-5xl sm:text-7xl font-black tracking-tighter leading-none font-display transition-colors
+                                        ${isToday ? 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'text-neutral-800 group-hover:text-neutral-700'}
+                                    `}>
+                                        {day.getDate()}
+                                    </div>
+                                    <div className={`text-xs font-bold uppercase tracking-wider mt-1 mr-1 ${isToday ? 'text-white' : 'text-neutral-600'}`}>
+                                        {day.toLocaleDateString('default', { weekday: 'short' })}
+                                    </div>
+                                </div>
 
                 {/* Divider Line */}
                 <div className="w-px bg-neutral-800 relative mt-3 mb-4 flex-none">

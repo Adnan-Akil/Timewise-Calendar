@@ -2,7 +2,7 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { CalendarEvent } from "../types";
 
 // Initialize Gemini Client
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+const apiKey = process.env.API_KEY || ''; // Handled by environment
 const ai = new GoogleGenAI({ apiKey });
 
 // Schema for scheduling suggestions
@@ -15,15 +15,9 @@ const scheduleResponseSchema: Schema = {
         type: Type.OBJECT,
         properties: {
           title: { type: Type.STRING },
-          startIso: {
-            type: Type.STRING,
-            description: "ISO string of start time",
-          },
+          startIso: { type: Type.STRING, description: "ISO string of start time" },
           endIso: { type: Type.STRING, description: "ISO string of end time" },
-          reason: {
-            type: Type.STRING,
-            description: "Why this slot was chosen",
-          },
+          reason: { type: Type.STRING, description: "Why this slot was chosen" },
         },
         required: ["title", "startIso", "endIso", "reason"],
       },
@@ -39,19 +33,10 @@ const eventExtractionSchema: Schema = {
     startIso: { type: Type.STRING, description: "ISO string of start time" },
     endIso: { type: Type.STRING, description: "ISO string of end time" },
     description: { type: Type.STRING },
-    type: {
-      type: Type.STRING,
-      enum: [
-        "CLASS",
-        "STUDY",
-        "EXAM",
-        "SOCIAL",
-        "GYM",
-        "WORK",
-        "MEETING",
-        "OTHER",
-      ],
-    },
+    type: { 
+      type: Type.STRING, 
+      enum: ["CLASS", "STUDY", "EXAM", "SOCIAL", "GYM", "WORK", "MEETING", "OTHER"] 
+    }
   },
   required: ["title", "startIso", "endIso", "type"],
 };
@@ -64,13 +49,11 @@ export const getScheduleSuggestions = async (
   if (!apiKey) return null;
 
   const now = new Date();
-  const eventsContext = JSON.stringify(
-    existingEvents.map((e) => ({
-      title: e.title,
-      start: e.start.toISOString(),
-      end: e.end.toISOString(),
-    }))
-  );
+  const eventsContext = JSON.stringify(existingEvents.map(e => ({
+    title: e.title,
+    start: e.start.toISOString(),
+    end: e.end.toISOString()
+  })));
 
   const prompt = `
     Current Date/Time: ${now.toISOString()}
@@ -87,7 +70,7 @@ export const getScheduleSuggestions = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -104,7 +87,7 @@ export const getScheduleSuggestions = async (
 
 export const parseSmartTask = async (text: string) => {
   if (!apiKey) return null;
-
+  
   const now = new Date();
   const prompt = `
     Current Date/Time: ${now.toISOString()}
@@ -120,7 +103,7 @@ export const parseSmartTask = async (text: string) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -141,14 +124,12 @@ export const askCalendarAgent = async (
 ) => {
   if (!apiKey) return "API Key missing. Please configure your environment.";
 
-  const eventsContext = JSON.stringify(
-    existingEvents.map((e) => ({
-      title: e.title,
-      start: e.start.toISOString(),
-      end: e.end.toISOString(),
-      type: e.type,
-    }))
-  );
+  const eventsContext = JSON.stringify(existingEvents.map(e => ({
+    title: e.title,
+    start: e.start.toISOString(),
+    end: e.end.toISOString(),
+    type: e.type
+  })));
 
     const systemInstruction = `
     You are a Calendar AI Assistant. Your ONLY responsibilities are:
@@ -228,11 +209,11 @@ export const askCalendarAgent = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-flash-lite-latest",
+      model: 'gemini-flash-lite-latest', 
       contents: `Schedule Data: ${eventsContext}\n\nQuestion: ${question}`,
       config: {
         systemInstruction: systemInstruction,
-      },
+      }
     });
 
     return response.text;
