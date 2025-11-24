@@ -14,7 +14,6 @@ interface CalendarViewProps {
   mode: ViewMode;
   currentDate: Date;
   now: Date;
-  now: Date;
   onDateClick?: (date: Date) => void;
   onEventClick?: (event: CalendarEvent) => void;
 }
@@ -388,8 +387,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         onDateClick={onDateClick}
         onEventClick={onEventClick}
         now={now}
-      />
-    );
+      />;
   }
 
   return null;

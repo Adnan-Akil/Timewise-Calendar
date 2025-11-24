@@ -2,7 +2,7 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { CalendarEvent } from "../types";
 
 // Initialize Gemini Client
-const apiKey = process.env.API_KEY || ''; // Handled by environment
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ''; // Handled by environment
 const ai = new GoogleGenAI({ apiKey });
 
 // Schema for scheduling suggestions

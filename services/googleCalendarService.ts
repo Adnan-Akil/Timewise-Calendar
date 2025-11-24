@@ -14,6 +14,14 @@ const DISCOVERY_DOC =
 // included, separated by spaces.
 const SCOPES = "https://www.googleapis.com/auth/calendar";
 
+// Debug: Log environment variable status (remove in production)
+console.log('Environment check:', {
+  hasClientId: !!CLIENT_ID && CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID',
+  hasApiKey: !!API_KEY && API_KEY !== 'YOUR_GOOGLE_API_KEY',
+  clientIdPreview: CLIENT_ID?.substring(0, 20) + '...',
+});
+
+
 let tokenClient: any;
 let gapiInited = false;
 let gisInited = false;
@@ -358,13 +366,13 @@ export const listUpcomingEvents = async (): Promise<CalendarEvent[]> => {
 
     console.log('Fetching events from calendars:', calendars.map(c => c.summary));
 
-    // Fetch ALL events from 5 years ago to 5 years in future
+    // Fetch events from 3 months ago to 1 year in future (optimized range)
     const now = new Date();
     const timeMin = new Date(
-      now.getTime() - 5 * 365 * 24 * 60 * 60 * 1000
+      now.getTime() - 90 * 24 * 60 * 60 * 1000 // 3 months past
     ).toISOString();
     const timeMax = new Date(
-      now.getTime() + 5 * 365 * 24 * 60 * 60 * 1000
+      now.getTime() + 365 * 24 * 60 * 60 * 1000 // 1 year future
     ).toISOString();
 
     console.log(`Fetching all calendar events from ${timeMin} to ${timeMax}`);
