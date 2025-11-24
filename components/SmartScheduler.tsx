@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { parseSmartTask } from '../services/geminiService';
 import { CalendarEvent, EventType } from '../types';
 import { SparklesIcon, PlusIcon, CalendarIcon, ListIcon } from './Icons';
+import { useSwipeGesture } from '../hooks/useSwipeGesture';
 
 interface SmartSchedulerProps {
   events: CalendarEvent[];
@@ -25,6 +26,15 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onN
   const [manualStartTime, setManualStartTime] = useState('09:00');
   const [manualEndTime, setManualEndTime] = useState('10:00');
   const [manualRepetition, setManualRepetition] = useState('none');
+
+  // Swipe down to close modal
+  useSwipeGesture({
+    onSwipeDown: () => {
+      if (isOpen) {
+        setIsOpen(false);
+      }
+    },
+  }, { threshold: 80, velocityThreshold: 0.4 });
 
   const handleAiSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +93,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onN
       {/* Inline Button in Grid */}
       <button
         onClick={() => setIsOpen(true)}
-        className="w-14 h-14 rounded-2xl bg-white text-black shadow-lg shadow-white/10 hover:bg-neutral-200 active:scale-95 transition-all flex items-center justify-center ring-1 ring-white/20"
+        className="w-14 h-14 rounded-2xl bg-white text-black shadow-lg shadow-white/10 hover:bg-neutral-200 active:scale-95 transition-all duration-200 flex items-center justify-center ring-1 ring-white/20 hover:shadow-xl hover:shadow-white/20"
       >
         <PlusIcon className="w-6 h-6 stroke-[2.5]" />
       </button>
@@ -92,11 +102,11 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onN
       {isOpen && createPortal(
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" role="dialog">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={closeModal} />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeModal} />
             
             {/* Content Card */}
             <div 
-                className="relative bg-[#1C1C1E] w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-full duration-300 pb-safe border-t border-white/10"
+                className="relative bg-[#1C1C1E] w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl animate-slide-up pb-safe border-t border-white/10"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Drag Handle */}
@@ -148,9 +158,19 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onN
                              <button 
                                 type="submit" 
                                 disabled={loading || !aiInput.trim()}
-                                className="w-full py-4 bg-[#FF9F5A] text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="w-full py-4 bg-[#FF9F5A] text-white rounded-2xl font-bold text-lg hover:opacity-90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
-                                {loading ? "Processing..." : "Create with AI"}
+                                {loading ? (
+                                  <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Processing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <SparklesIcon className="w-5 h-5" />
+                                    Create with AI
+                                  </>
+                                )}
                             </button>
                         </form>
                     ) : (
@@ -219,7 +239,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onN
 
                             <button 
                                 type="submit" 
-                                className="w-full py-4 bg-white text-black rounded-2xl font-bold text-lg hover:bg-neutral-200 transition-colors mt-2"
+                                className="w-full py-4 bg-white text-black rounded-2xl font-bold text-lg hover:bg-neutral-200 active:scale-[0.98] transition-all duration-200 mt-2"
                             >
                                 Add Event
                             </button>

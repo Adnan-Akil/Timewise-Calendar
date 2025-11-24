@@ -41,4 +41,22 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none; /* Chrome, Safari and Opera */
   }
+
+  /* Butter-smooth scrolling improvements */
+  .no-scrollbar {
+    /* Enable hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    
+    /* Smooth momentum scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    
+    /* Prevent scroll chaining and overscroll */
+    overscroll-behavior: contain;
+    
+    /* Optimize rendering */
+    will-change: scroll-position;
+  }
 }

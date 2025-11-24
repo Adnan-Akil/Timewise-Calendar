@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarEvent, EventType } from '../types';
+import { useSwipeGesture } from '../hooks/useSwipeGesture';
 
 interface EditEventModalProps {
   event: CalendarEvent | null;
@@ -18,6 +19,15 @@ const EditEventModal: React.FC<EditEventModalProps> = ({ event, isOpen, onClose,
   const [endTime, setEndTime] = useState('');
   const [type, setType] = useState<EventType>(EventType.OTHER);
   const [description, setDescription] = useState('');
+
+  // Swipe down to close modal
+  useSwipeGesture({
+    onSwipeDown: () => {
+      if (isOpen) {
+        onClose();
+      }
+    },
+  }, { threshold: 80, velocityThreshold: 0.4 });
 
   useEffect(() => {
     if (event) {
@@ -70,52 +80,58 @@ const EditEventModal: React.FC<EditEventModalProps> = ({ event, isOpen, onClose,
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Blurred Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-md animate-in fade-in duration-300" 
+        className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" 
         onClick={onClose} 
       />
 
-      {/* Modal Content */}
-      <div className="relative w-full max-w-md bg-[#1C1C1E] rounded-3xl shadow-2xl border border-white/10 overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-white/5 bg-neutral-900/50">
-          <h2 className="text-xl font-bold text-white">Edit Event</h2>
+      {/* Modal Content - Compact and Centered */}
+      <div className="relative w-full max-w-[340px] bg-[#121212] rounded-3xl shadow-2xl border border-white/10 overflow-hidden animate-scale-in">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#121212]">
+          <div>
+            <h2 className="text-base font-bold text-white">Edit Event</h2>
+            <p className="text-[10px] text-neutral-500 mt-0.5">Update event details</p>
+          </div>
           <button 
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-neutral-800 text-neutral-400 flex items-center justify-center hover:bg-neutral-700 hover:text-white transition-colors"
+            className="w-8 h-8 rounded-xl bg-white/5 backdrop-blur-sm text-neutral-400 flex items-center justify-center hover:bg-white/10 hover:text-white transition-all duration-200 active:scale-95 border border-white/10"
           >
-            &times;
+            ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 space-y-3">
+          {/* Event Title */}
           <div>
-            <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Event Title</label>
+            <label className="block text-[10px] font-semibold text-neutral-400 mb-1.5 ml-1">Event Title</label>
             <input 
               type="text" 
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-3.5 bg-black/20 border border-neutral-700 rounded-2xl text-white focus:border-white/20 focus:outline-none transition-colors"
+              className="w-full p-2.5 bg-[#1C1C1E] border border-white/10 rounded-xl text-white text-sm focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all placeholder:text-neutral-600"
               placeholder="Event Title"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Date and Type */}
+          <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Date</label>
+              <label className="block text-[10px] font-semibold text-neutral-400 mb-1.5 ml-1">Date</label>
               <input 
                 type="date"
                 required 
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full p-3 bg-black/20 border border-neutral-700 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors [color-scheme:dark]"
+                className="w-full p-2 bg-[#1C1C1E] border border-white/10 rounded-xl text-white text-xs focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all [color-scheme:dark]"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Type</label>
+              <label className="block text-[10px] font-semibold text-neutral-400 mb-1.5 ml-1">Type</label>
               <select 
                 value={type}
                 onChange={(e) => setType(e.target.value as EventType)}
-                className="w-full p-3 bg-black/20 border border-neutral-700 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors appearance-none"
+                className="w-full p-2 bg-[#1C1C1E] border border-white/10 rounded-xl text-white text-xs focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all appearance-none"
               >
                  {Object.values(EventType).map(t => (
                      <option key={t} value={t}>{t}</option>
@@ -124,50 +140,53 @@ const EditEventModal: React.FC<EditEventModalProps> = ({ event, isOpen, onClose,
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Time Range */}
+          <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Start Time</label>
+              <label className="block text-[10px] font-semibold text-neutral-400 mb-1.5 ml-1">Start</label>
               <input 
                 type="time" 
                 required
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full p-3 bg-black/20 border border-neutral-700 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors [color-scheme:dark]"
+                className="w-full p-2 bg-[#1C1C1E] border border-white/10 rounded-xl text-white text-xs focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all [color-scheme:dark]"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">End Time</label>
+              <label className="block text-[10px] font-semibold text-neutral-400 mb-1.5 ml-1">End</label>
               <input 
                 type="time" 
                 required
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full p-3 bg-black/20 border border-neutral-700 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors [color-scheme:dark]"
+                className="w-full p-2 bg-[#1C1C1E] border border-white/10 rounded-xl text-white text-xs focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all [color-scheme:dark]"
               />
             </div>
           </div>
 
+          {/* Description */}
           <div>
-             <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Description</label>
+             <label className="block text-[10px] font-semibold text-neutral-400 mb-1.5 ml-1">Description</label>
              <textarea 
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full p-3 bg-black/20 border border-neutral-700 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors resize-none h-24"
-                placeholder="Notes..."
+                className="w-full p-2.5 bg-[#1C1C1E] border border-white/10 rounded-xl text-white text-sm focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all resize-none h-16 placeholder:text-neutral-600"
+                placeholder="Add notes..."
              />
           </div>
 
-          <div className="flex gap-3 pt-2">
+          {/* Action Buttons */}
+          <div className="flex gap-2.5 pt-1">
             <button 
                 type="button"
                 onClick={handleDelete}
-                className="flex-1 py-3.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl font-bold text-sm hover:bg-red-500/20 transition-colors"
+                className="flex-1 py-2.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl font-semibold text-sm hover:bg-red-500/20 active:scale-[0.98] transition-all duration-200"
             >
                 Delete
             </button>
             <button 
                 type="submit" 
-                className="flex-[2] py-3.5 bg-white text-black rounded-xl font-bold text-sm hover:bg-neutral-200 transition-colors shadow-lg shadow-white/5"
+                className="flex-[2] py-2.5 bg-red-600 text-white rounded-xl font-semibold text-sm hover:bg-red-500 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-red-500/20"
             >
                 Save Changes
             </button>

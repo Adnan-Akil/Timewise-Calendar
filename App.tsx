@@ -9,8 +9,9 @@ import {
   CalendarIcon,
   CogIcon,
   ListIcon,
-  SparklesIcon,
   PlusIcon,
+  SparklesIcon,
+  ChevronRightIcon,
 } from "./components/Icons";
 import {
   initializeGoogleApi,
@@ -103,6 +104,50 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // Auto-sync on load if already authenticated
+  useEffect(() => {
+    if (!isApiReady) return;
+
+    // Import the checkStoredAuth function
+    import("./services/googleCalendarService").then(
+      ({ checkStoredAuth, listUpcomingEvents }) => {
+        const hasStoredAuth = checkStoredAuth();
+        if (hasStoredAuth) {
+          console.log("Found stored authentication, auto-syncing...");
+          setSettings((prev) => ({ ...prev, isGoogleConnected: true }));
+          setIsSyncing(true);
+
+          // Fetch events automatically
+          listUpcomingEvents()
+            .then((googleEvents) => {
+              console.log(
+                `Auto-sync: Successfully fetched ${googleEvents.length} Google Calendar events`
+              );
+
+              // Merge logic: Add new events, filtering duplicates
+              setEvents((prev) => {
+                const existingIds = new Set(prev.map((e) => e.id));
+                const newEvents = googleEvents.filter(
+                  (ge) => !existingIds.has(ge.id)
+                );
+                console.log(
+                  `Auto-sync: Merging ${newEvents.length} new events with ${prev.length} existing events`
+                );
+                return [...prev, ...newEvents];
+              });
+            })
+            .catch((error) => {
+              console.error("Auto-sync failed:", error);
+              // Don't show alert on auto-sync failure, just log it
+            })
+            .finally(() => {
+              setIsSyncing(false);
+            });
+        }
+      }
+    );
+  }, [isApiReady]);
+
   // --- Handlers ---
   const handleToggleGoogle = async () => {
     if (!isApiReady) {
@@ -129,7 +174,9 @@ const App: React.FC = () => {
           // Fetch events immediately after login
           try {
             const googleEvents = await listUpcomingEvents();
-            console.log(`Successfully fetched ${googleEvents.length} Google Calendar events`);
+            console.log(
+              `Successfully fetched ${googleEvents.length} Google Calendar events`
+            );
 
             // Merge logic: Add new events, filtering duplicates
             setEvents((prev) => {
@@ -144,7 +191,9 @@ const App: React.FC = () => {
             });
           } catch (fetchError) {
             console.error("Failed to fetch calendar events:", fetchError);
-            alert("Connected to Google but couldn't fetch events. Check console.");
+            alert(
+              "Connected to Google but couldn't fetch events. Check console."
+            );
           }
         }
       } catch (error) {
@@ -306,21 +355,26 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-end justify-center">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+            className="absolute inset-0 bg-black/50 backdrop-blur-md animate-in fade-in duration-200"
             onClick={() => setShowSettingsModal(false)}
           />
 
           {/* Sheet */}
-          <div className="relative bg-[#1C1C1E] w-full max-w-md rounded-t-3xl p-6 border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom-full duration-300 pb-safe mb-0">
-            <div className="w-12 h-1.5 bg-neutral-700 rounded-full mx-auto mb-6" />
+          <div className="relative bg-gradient-to-b from-[#1C1C1E] to-[#151517] w-full max-w-md rounded-t-3xl p-6 border-t border-white/10 shadow-2xl animate-slide-up pb-safe mb-0 overflow-hidden">
+            {/* Drag Handle */}
+            <div className="w-12 h-1.5 bg-neutral-600 rounded-full mx-auto mb-6" />
 
+            {/* Header */}
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-white">Settings</h3>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Settings</h3>
+                <p className="text-xs text-neutral-500 mt-0.5">Manage your preferences</p>
+              </div>
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 backdrop-blur-sm text-neutral-400 hover:bg-white/10 hover:text-white transition-all duration-200 active:scale-95 border border-white/10"
               >
-                &times;
+                ×
               </button>
             </div>
 
@@ -329,79 +383,119 @@ const App: React.FC = () => {
               <button
                 onClick={handleToggleGoogle}
                 disabled={!isApiReady || isSyncing}
-                className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 active:scale-[0.98] ${
                   settings.isGoogleConnected
-                    ? "bg-green-500/10 border-green-500/20"
-                    : "bg-neutral-900 border-neutral-800 hover:border-white/20"
-                } ${isSyncing ? "opacity-50" : ""}`}
+                    ? "bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/30 shadow-lg shadow-green-500/10"
+                    : "bg-[#252527] border-white/10 hover:border-white/20 hover:bg-[#2A2A2C]"
+                } ${isSyncing ? "opacity-50 cursor-wait" : ""}`}
               >
-                <span
-                  className={`font-medium ${
-                    settings.isGoogleConnected
-                      ? "text-green-400"
-                      : "text-neutral-300"
-                  }`}
-                >
-                  {isSyncing
-                    ? "Syncing..."
-                    : settings.isGoogleConnected
-                    ? "Google Calendar Connected"
-                    : "Connect Google Calendar"}
-                </span>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    settings.isGoogleConnected 
+                      ? "bg-green-500/20" 
+                      : "bg-white/5"
+                  }`}>
+                    <svg className={`w-5 h-5 ${settings.isGoogleConnected ? "text-green-400" : "text-neutral-500"}`} fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <span className={`font-semibold block text-sm ${
+                      settings.isGoogleConnected
+                        ? "text-green-400"
+                        : "text-neutral-200"
+                    }`}>
+                      {isSyncing
+                        ? "Syncing..."
+                        : settings.isGoogleConnected
+                        ? "Google Calendar"
+                        : "Connect Google"}
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      {settings.isGoogleConnected ? "Connected" : "Sync your events"}
+                    </span>
+                  </div>
+                </div>
                 {settings.isGoogleConnected ? (
-                  <div className="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full">
-                    ON
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span className="text-xs font-bold text-green-400">ON</span>
                   </div>
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-500">
-                    <SparklesIcon className="w-4 h-4" />
-                  </div>
+                  <ChevronRightIcon className="w-5 h-5 text-neutral-600" />
                 )}
               </button>
 
               {/* Add Calendar */}
               <button
                 onClick={() => mockAction("Add Calendar feature coming soon!")}
-                className="w-full flex items-center justify-between p-4 bg-neutral-900 rounded-2xl border border-neutral-800 hover:border-white/20 transition-all group"
+                className="w-full flex items-center justify-between p-4 bg-[#252527] rounded-2xl border border-white/10 hover:border-white/20 hover:bg-[#2A2A2C] transition-all duration-200 active:scale-[0.98] group"
               >
-                <span className="font-medium text-neutral-300 group-hover:text-white">
-                  Add Another Calendar
-                </span>
-                <PlusIcon className="w-5 h-5 text-neutral-500 group-hover:text-white" />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                    <PlusIcon className="w-5 h-5 text-neutral-500 group-hover:text-white transition-colors" />
+                  </div>
+                  <div className="text-left">
+                    <span className="font-semibold text-neutral-200 group-hover:text-white text-sm block transition-colors">
+                      Add Calendar
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      Connect another account
+                    </span>
+                  </div>
+                </div>
+                <ChevronRightIcon className="w-5 h-5 text-neutral-600 group-hover:text-neutral-400 transition-colors" />
               </button>
 
               {/* Import/Export */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => mockAction("Importing...")}
-                  className="p-4 bg-neutral-900 rounded-2xl border border-neutral-800 hover:border-white/20 transition-all text-neutral-300 font-medium"
+                  className="p-4 bg-[#252527] rounded-2xl border border-white/10 hover:border-white/20 hover:bg-[#2A2A2C] transition-all duration-200 active:scale-[0.98] text-neutral-200 font-semibold text-sm"
                 >
                   Import
                 </button>
                 <button
                   onClick={() => mockAction("Exporting...")}
-                  className="p-4 bg-neutral-900 rounded-2xl border border-neutral-800 hover:border-white/20 transition-all text-neutral-300 font-medium"
+                  className="p-4 bg-[#252527] rounded-2xl border border-white/10 hover:border-white/20 hover:bg-[#2A2A2C] transition-all duration-200 active:scale-[0.98] text-neutral-200 font-semibold text-sm"
                 >
                   Export
                 </button>
               </div>
 
+              {/* Replay Tour */}
               <button
                 onClick={() => {
                   setSettings((s) => ({ ...s, hasCompletedTour: false }));
                   setShowSettingsModal(false);
                 }}
-                className="w-full flex items-center justify-between p-4 bg-neutral-900 rounded-2xl border border-neutral-800 hover:border-white/20 transition-all mt-4"
+                className="w-full flex items-center justify-between p-4 bg-[#252527] rounded-2xl border border-white/10 hover:border-white/20 hover:bg-[#2A2A2C] transition-all duration-200 active:scale-[0.98] mt-4 group"
               >
-                <span className="font-medium text-neutral-300">
-                  Replay Tour
-                </span>
-                <span className="text-xs text-neutral-500">Restart</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                    <svg className="w-5 h-5 text-neutral-500 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <span className="font-semibold text-neutral-200 group-hover:text-white text-sm block transition-colors">
+                      Replay Tour
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      See the guide again
+                    </span>
+                  </div>
+                </div>
+                <ChevronRightIcon className="w-5 h-5 text-neutral-600 group-hover:text-neutral-400 transition-colors" />
               </button>
 
-              <div className="pt-4 text-center">
+              {/* Version */}
+              <div className="pt-6 text-center border-t border-white/5 mt-4">
                 <p className="text-xs text-neutral-600">
-                  Timewise Calendar v1.2.1
+                  Timewise Calendar <span className="text-neutral-500">v1.2.1</span>
                 </p>
               </div>
             </div>
