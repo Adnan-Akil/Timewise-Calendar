@@ -19,6 +19,8 @@ import {
   listUpcomingEvents,
   handleSignOut,
 } from "./services/googleCalendarService";
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
 
 const App: React.FC = () => {
   // --- State ---
@@ -28,13 +30,15 @@ const App: React.FC = () => {
         return saved ? JSON.parse(saved) : {
             theme: 'dark',
             isGoogleConnected: false,
-            hasCompletedTour: false
+            hasCompletedTour: false,
+            reminderTime: 15 // Default 15 mins
         };
     } catch (e) {
         return {
             theme: 'dark',
             isGoogleConnected: false,
-            hasCompletedTour: false
+            hasCompletedTour: false,
+            reminderTime: 15
         };
     }
   });
@@ -55,11 +59,24 @@ const App: React.FC = () => {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   
   // Initial Mock Events
-  const [events, setEvents] = useState<CalendarEvent[]>([
-    { id: '1', title: 'Weekly Leadership', type: EventType.MEETING, start: new Date(new Date().setHours(11,0,0,0)), end: new Date(new Date().setHours(11,30,0,0)) },
-    { id: '2', title: 'Product Strategy', type: EventType.MEETING, start: new Date(new Date().setHours(13,0,0,0)), end: new Date(new Date().setHours(15,0,0,0)) },
-    { id: '3', title: 'Kick-Off', type: EventType.WORK, start: new Date(new Date().setDate(new Date().getDate() + 2)), end: new Date(new Date().setDate(new Date().getDate() + 2)) }
-  ] as any);
+  const [events, setEvents] = useState<CalendarEvent[]>(() => {
+    try {
+      const savedEvents = localStorage.getItem('timewise_events');
+      if (savedEvents) {
+        // Need to revive Date objects from JSON
+        return JSON.parse(savedEvents, (key, value) => {
+          if (key === 'start' || key === 'end') {
+            return new Date(value);
+          }
+          return value;
+        });
+      }
+      return [];
+    } catch (e) {
+      console.error("Failed to load events from storage", e);
+      return [];
+    }
+  });
 
 
   // --- Effects ---
@@ -67,6 +84,11 @@ const App: React.FC = () => {
     localStorage.setItem('regalPlanSettings', JSON.stringify(settings));
     document.documentElement.classList.add('dark');
   }, [settings]);
+
+  // Persist events whenever they change
+  useEffect(() => {
+    localStorage.setItem('timewise_events', JSON.stringify(events));
+  }, [events]);
 
   // Real-time clock ticker (updates every minute)
   useEffect(() => {
@@ -124,10 +146,69 @@ const App: React.FC = () => {
             .finally(() => {
               setIsSyncing(false);
             });
+        } else {
+            // If no valid auth found, we DO NOT automatically disconnect.
+            // The user prefers the UI to stay "Connected" even if the token expired.
+            // We will handle re-auth when they actually try to use it or sync.
+            console.log("No valid stored auth found, but keeping UI state as is (per user preference)");
         }
       }
     );
   }, [isApiReady]);
+
+  // --- Notification Logic ---
+  useEffect(() => {
+    // Request permission on load
+    const requestPermissions = async () => {
+        if (Capacitor.isNativePlatform()) {
+            await LocalNotifications.requestPermissions();
+        } else if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    };
+    requestPermissions();
+
+    const checkNotifications = async () => {
+        const now = new Date();
+        const reminderMs = settings.reminderTime * 60 * 1000;
+
+        for (const event of events) {
+            const timeDiff = event.start.getTime() - now.getTime();
+            
+            // Check if event is within the reminder window (and not too far past)
+            // Logic: Event is starting in [reminderTime] minutes (+/- 1 minute tolerance)
+            if (timeDiff > 0 && timeDiff <= reminderMs && timeDiff > reminderMs - 60000) {
+                 const title = `Upcoming Event: ${event.title}`;
+                 const body = `Starts in ${settings.reminderTime} minutes at ${event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                 
+                 if (Capacitor.isNativePlatform()) {
+                     // Native Notification
+                     await LocalNotifications.schedule({
+                         notifications: [{
+                             title: title,
+                             body: body,
+                             id: Math.floor(Math.random() * 100000), // Random ID for now
+                             schedule: { at: new Date(Date.now() + 1000) }, // Show immediately (1s delay)
+                             sound: undefined,
+                             attachments: undefined,
+                             actionTypeId: "",
+                             extra: null
+                         }]
+                     });
+                 } else if (Notification.permission === 'granted') {
+                     // Web Notification
+                     new Notification(title, {
+                        body: body,
+                        icon: '/vite.svg'
+                    });
+                 }
+            }
+        }
+    };
+
+    const timer = setInterval(checkNotifications, 60000); // Check every minute
+    return () => clearInterval(timer);
+  }, [events, settings.reminderTime]);
 
   // --- Handlers ---
   const handleToggleGoogle = async () => {
@@ -382,41 +463,62 @@ const App: React.FC = () => {
                 )}
               </button>
 
-              {/* Add Calendar */}
-              <button
-                onClick={() => mockAction("Add Calendar feature coming soon!")}
-                className="w-full flex items-center justify-between p-4 bg-[#252527] rounded-2xl border border-white/10 hover:border-white/20 hover:bg-[#2A2A2C] transition-all duration-200 active:scale-[0.98] group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
-                    <PlusIcon className="w-5 h-5 text-neutral-500 group-hover:text-white transition-colors" />
+              {/* Notification Reminder Slider */}
+              <div className="p-4 bg-[#252527] rounded-2xl border border-white/10">
+                  <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                              <svg className="w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                              </svg>
+                          </div>
+                          <div>
+                              <span className="font-semibold text-neutral-200 text-sm block">Notifications</span>
+                              <span className="text-xs text-neutral-500">Remind me before event</span>
+                          </div>
+                      </div>
+                      <span className="text-sm font-medium text-white bg-white/10 px-2 py-1 rounded-md">
+                          {settings.reminderTime >= 1440 ? '1 Day' : 
+                           settings.reminderTime >= 60 ? `${settings.reminderTime / 60} Hr` : 
+                           `${settings.reminderTime} Min`}
+                      </span>
                   </div>
-                  <div className="text-left">
-                    <span className="font-semibold text-neutral-200 group-hover:text-white text-sm block transition-colors">
-                      Add Calendar
-                    </span>
-                    <span className="text-xs text-neutral-500">
-                      Connect another account
-                    </span>
+                  
+                  <input 
+                      type="range" 
+                      min="0" 
+                      max="4" 
+                      step="1"
+                      value={
+                          settings.reminderTime === 5 ? 0 :
+                          settings.reminderTime === 15 ? 1 :
+                          settings.reminderTime === 30 ? 2 :
+                          settings.reminderTime === 60 ? 3 : 4
+                      }
+                      onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          let mins = 15;
+                          if (val === 0) mins = 5;
+                          if (val === 1) mins = 15;
+                          if (val === 2) mins = 30;
+                          if (val === 3) mins = 60;
+                          if (val === 4) mins = 1440; // 1 day
+                          
+                          setSettings(prev => ({ ...prev, reminderTime: mins }));
+                          
+                          if (Notification.permission !== 'granted') {
+                              Notification.requestPermission();
+                          }
+                      }}
+                      className="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-white"
+                  />
+                  <div className="flex justify-between text-[10px] text-neutral-500 mt-2 font-medium uppercase tracking-wider">
+                      <span>5m</span>
+                      <span>15m</span>
+                      <span>30m</span>
+                      <span>1h</span>
+                      <span>1d</span>
                   </div>
-                </div>
-                <ChevronRightIcon className="w-5 h-5 text-neutral-600 group-hover:text-neutral-400 transition-colors" />
-              </button>
-
-              {/* Import/Export */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => mockAction("Importing...")}
-                  className="p-4 bg-[#252527] rounded-2xl border border-white/10 hover:border-white/20 hover:bg-[#2A2A2C] transition-all duration-200 active:scale-[0.98] text-neutral-200 font-semibold text-sm"
-                >
-                  Import
-                </button>
-                <button
-                  onClick={() => mockAction("Exporting...")}
-                  className="p-4 bg-[#252527] rounded-2xl border border-white/10 hover:border-white/20 hover:bg-[#2A2A2C] transition-all duration-200 active:scale-[0.98] text-neutral-200 font-semibold text-sm"
-                >
-                  Export
-                </button>
               </div>
 
               {/* Replay Tour */}

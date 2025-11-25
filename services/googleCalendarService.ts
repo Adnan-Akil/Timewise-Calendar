@@ -200,7 +200,36 @@ export const initializeGoogleApi = (callback: () => void) => {
   }, 10000);
 };
 
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { Capacitor } from '@capacitor/core';
+
+// ... (existing imports)
+
 export const handleAuthClick = async (): Promise<boolean> => {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      console.log("Starting native Google Sign-In...");
+      await GoogleAuth.initialize();
+      const user = await GoogleAuth.signIn();
+      console.log("Native sign-in successful:", user);
+      
+      currentAccessToken = user.authentication.accessToken;
+      
+      // Persist auth state (optional, plugin handles some session stuff but we can sync)
+      // For now, just setting the token is enough for the API calls to work if we pass it manually
+      // But gapi.client won't be populated. We need to ensure our API calls use currentAccessToken.
+      
+      // We need to initialize gapi client manually with this token if possible, 
+      // or just ensure our fetch calls use `currentAccessToken` which they do.
+      
+      return true;
+    } catch (error) {
+      console.error("Native sign-in failed:", error);
+      return false;
+    }
+  }
+
+  // Web Fallback
   return new Promise((resolve, reject) => {
     if (!tokenClient) {
       console.error(
@@ -269,17 +298,24 @@ export const handleAuthClick = async (): Promise<boolean> => {
 };
 
 export const handleSignOut = () => {
-  const token = gapi.client.getToken();
-  if (token !== null) {
-    console.log("Revoking token and signing out");
-    google.accounts.oauth2.revoke(token.access_token, () => {
-      console.log("Token revoked");
-    });
-    gapi.client.setToken("");
-    currentAccessToken = null;
-    calendarApiLoaded = false; // Reset calendar API flag
-    clearAuthState(); // Clear from localStorage
+    if (Capacitor.isNativePlatform()) {
+        GoogleAuth.signOut();
+    }
+    
+  if (typeof gapi !== 'undefined' && gapi.client) {
+    const token = gapi.client.getToken();
+    if (token !== null) {
+        console.log("Revoking token and signing out");
+        google.accounts.oauth2.revoke(token.access_token, () => {
+        console.log("Token revoked");
+        });
+        gapi.client.setToken("");
+    }
   }
+  
+  currentAccessToken = null;
+  calendarApiLoaded = false; // Reset calendar API flag
+  clearAuthState(); // Clear from localStorage
 };
 
 // --- DATA MAPPING ---
@@ -311,11 +347,21 @@ const mapGoogleEventToAppEvent = (gEvent: any): CalendarEvent => {
   };
 };
 
+// Helper to get token (Native or Web)
+const getAccessToken = () => {
+    if (currentAccessToken) return currentAccessToken;
+    if (typeof gapi !== 'undefined' && gapi.client) {
+        const token = gapi.client.getToken();
+        return token ? token.access_token : null;
+    }
+    return null;
+};
+
 // Fetch list of all calendars
 export const listAllCalendars = async (): Promise<any[]> => {
   try {
-    const token = gapi?.client?.getToken?.();
-    if (!token) {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
       console.error("No access token available");
       return [];
     }
@@ -324,7 +370,7 @@ export const listAllCalendars = async (): Promise<any[]> => {
       'https://www.googleapis.com/calendar/v3/users/me/calendarList',
       {
         headers: {
-          Authorization: `Bearer ${token.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       }
     );
@@ -346,15 +392,15 @@ export const listAllCalendars = async (): Promise<any[]> => {
 export const listUpcomingEvents = async (): Promise<CalendarEvent[]> => {
   try {
     // Ensure we have a token
-    const token = gapi?.client?.getToken?.();
-    if (!token) {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
       console.error("No access token available. User must authenticate first.");
       return [];
     }
 
     console.log(
       "Using access token:",
-      token.access_token.substring(0, 20) + "..."
+      accessToken.substring(0, 20) + "..."
     );
 
     // First, get all calendars
@@ -406,7 +452,7 @@ export const listUpcomingEvents = async (): Promise<CalendarEvent[]> => {
 
           const response = await fetch(url, {
             headers: {
-              Authorization: `Bearer ${token.access_token}`,
+              Authorization: `Bearer ${accessToken}`,
             },
           });
 
@@ -468,8 +514,8 @@ export const createGoogleCalendarEvent = async (
   event: CalendarEvent
 ): Promise<boolean> => {
   try {
-    const token = gapi?.client?.getToken?.();
-    if (!token) {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
       console.error("No access token available");
       return false;
     }
@@ -492,7 +538,7 @@ export const createGoogleCalendarEvent = async (
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(googleEvent),
@@ -519,8 +565,8 @@ export const updateGoogleCalendarEvent = async (
   event: CalendarEvent
 ): Promise<boolean> => {
   try {
-    const token = gapi?.client?.getToken?.();
-    if (!token) {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
       console.error("No access token available");
       return false;
     }
@@ -548,7 +594,7 @@ export const updateGoogleCalendarEvent = async (
       {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${token.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(googleEvent),
@@ -575,8 +621,8 @@ export const deleteGoogleCalendarEvent = async (
   eventId: string
 ): Promise<boolean> => {
   try {
-    const token = gapi?.client?.getToken?.();
-    if (!token) {
+    const accessToken = getAccessToken();
+    if (!accessToken) {
       console.error("No access token available");
       return false;
     }
@@ -588,7 +634,7 @@ export const deleteGoogleCalendarEvent = async (
       {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       }
     );

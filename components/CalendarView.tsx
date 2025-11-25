@@ -109,8 +109,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
                 {/* Days Header */}
                 <div className="grid grid-cols-7 mb-4">
-                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(day => (
-                        <div key={day} className="text-center text-neutral-500 text-xs font-bold tracking-wider">
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
+                        <div key={i} className="text-center text-neutral-500 text-xs font-bold tracking-wider">
                             {day}
                         </div>
                     ))}
@@ -652,16 +652,16 @@ const InfiniteTimelineView = ({
                           >
                             {isCurrent && (
                               <div className="flex items-center gap-2 mb-2 animate-pulse">
-                                <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                                <span className="text-red-500 text-[10px] font-bold uppercase tracking-widest">
+                                <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]"></div>
+                                <span className="text-white text-[10px] font-bold uppercase tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
                                   Happening Now
                                 </span>
                               </div>
                             )}
 
-                            <div className="flex items-start justify-between pr-2">
+                            <div className={`flex items-start justify-between pr-2 transition-all duration-300 ${isCurrent ? 'drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]' : ''}`}>
                               <div className="flex-1 min-w-0">
-                                <div className="text-xl sm:text-2xl font-bold text-white mb-1 tracking-tight leading-tight">
+                                <div className={`text-xl sm:text-2xl font-bold mb-1 tracking-tight leading-tight ${isCurrent ? 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.6)]' : 'text-white'}`}>
                                   <span className="tabular-nums tracking-tighter">
                                     {event.start
                                       .toLocaleTimeString([], {

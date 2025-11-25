@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { parseSmartTask } from '../services/geminiService';
 import { CalendarEvent, EventType } from '../types';
-import { SparklesIcon, PlusIcon, CalendarIcon, ListIcon } from './Icons';
+import { PlusIcon, ChevronRightIcon, CalendarIcon } from './Icons';
 import { useSwipeGesture } from '../hooks/useSwipeGesture';
+import SwipeSelect from './SwipeSelect';
+import TimeWheel from './TimeWheel';
 
 interface SmartSchedulerProps {
   events: CalendarEvent[];
@@ -14,12 +15,7 @@ interface SmartSchedulerProps {
 
 const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState<'ai' | 'manual'>('ai');
-  const [loading, setLoading] = useState(false);
   
-  // AI State
-  const [aiInput, setAiInput] = useState('');
-
   // Manual State
   const [manualTitle, setManualTitle] = useState('');
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
@@ -36,29 +32,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onN
     },
   }, { threshold: 80, velocityThreshold: 0.4 });
 
-  const handleAiSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!aiInput.trim()) return;
 
-    setLoading(true);
-    const result = await parseSmartTask(aiInput);
-    
-    if (result && result.title) {
-        const newEvent: CalendarEvent = {
-            id: Date.now().toString(),
-            title: result.title,
-            start: new Date(result.startIso),
-            end: new Date(result.endIso),
-            type: result.type as EventType || EventType.OTHER,
-            description: result.description || `AI added from: "${aiInput}"`
-        };
-        
-        onAddEvent(newEvent);
-        closeModal();
-        onNavigate(newEvent.start);
-    }
-    setLoading(false);
-  };
 
   const handleManualSubmit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -83,9 +57,7 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onN
 
   const closeModal = () => {
       setIsOpen(false);
-      setAiInput('');
       setManualTitle('');
-      setMode('ai');
   };
 
   return (
@@ -116,23 +88,9 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onN
 
                 <div className="px-6 pb-6 pt-2">
                     
-                    {/* Header with Tabs */}
+                    {/* Header */}
                     <div className="flex items-center justify-between mb-6">
-                        <div className="flex p-1 bg-neutral-900 rounded-xl border border-white/5">
-                            <button 
-                                onClick={() => setMode('manual')}
-                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${mode === 'manual' ? 'bg-neutral-700 text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-300'}`}
-                            >
-                                Manual
-                            </button>
-                            <button 
-                                onClick={() => setMode('ai')}
-                                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${mode === 'ai' ? 'bg-[#FF9F5A] text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-300'}`}
-                            >
-                                <SparklesIcon className="w-3 h-3" />
-                                AI Assist
-                            </button>
-                        </div>
+                        <h2 className="text-xl font-bold text-white">New Event</h2>
                         <button 
                             onClick={closeModal}
                             className="w-8 h-8 flex items-center justify-center rounded-full bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
@@ -141,110 +99,73 @@ const SmartScheduler: React.FC<SmartSchedulerProps> = ({ events, onAddEvent, onN
                         </button>
                     </div>
 
-                    {mode === 'ai' ? (
-                        <form onSubmit={handleAiSubmit} className="space-y-4">
-                             <div className="relative group">
-                                <textarea 
-                                    value={aiInput}
-                                    onChange={(e) => setAiInput(e.target.value)}
-                                    placeholder="e.g. 'Gym workout tomorrow at 6pm for 1 hour'"
-                                    className="w-full h-40 p-4 bg-black/50 border border-neutral-800 rounded-2xl text-lg text-white placeholder:text-neutral-600 focus:border-[#FF9F5A] focus:outline-none resize-none transition-colors"
-                                    autoFocus
-                                />
-                                <div className="absolute bottom-4 right-4 text-neutral-600 pointer-events-none">
-                                    <SparklesIcon className="w-5 h-5" />
-                                </div>
-                            </div>
-                             <button 
-                                type="submit" 
-                                disabled={loading || !aiInput.trim()}
-                                className="w-full py-4 bg-[#FF9F5A] text-white rounded-2xl font-bold text-lg hover:opacity-90 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {loading ? (
-                                  <>
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                    Processing...
-                                  </>
-                                ) : (
-                                  <>
-                                    <SparklesIcon className="w-5 h-5" />
-                                    Create with AI
-                                  </>
-                                )}
-                            </button>
-                        </form>
-                    ) : (
-                        <form onSubmit={handleManualSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Event Title</label>
-                                <input 
-                                    type="text" 
-                                    required
-                                    value={manualTitle}
-                                    onChange={(e) => setManualTitle(e.target.value)}
-                                    className="w-full p-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-white focus:border-white/20 focus:outline-none transition-colors"
-                                    placeholder="Title"
-                                    autoFocus
-                                />
-                            </div>
+                    <form onSubmit={handleManualSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Event Title</label>
+                            <input 
+                                type="text" 
+                                required
+                                value={manualTitle}
+                                onChange={(e) => setManualTitle(e.target.value)}
+                                className="w-full p-4 bg-neutral-900 border border-neutral-800 rounded-2xl text-white focus:border-white/20 focus:outline-none transition-colors min-h-[56px] text-base"
+                                placeholder="Title"
+                                autoFocus
+                            />
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Date</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Date</label>
+                                <div className="relative">
                                     <input 
                                         type="date"
                                         required 
                                         value={manualDate}
                                         onChange={(e) => setManualDate(e.target.value)}
-                                        className="w-full p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors [color-scheme:dark]"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Repetition</label>
-                                    <select 
-                                        value={manualRepetition}
-                                        onChange={(e) => setManualRepetition(e.target.value)}
-                                        className="w-full p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors appearance-none"
-                                    >
-                                        <option value="none">None</option>
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="monthly">Monthly</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Start Time</label>
-                                    <input 
-                                        type="time" 
-                                        required
-                                        value={manualStartTime}
-                                        onChange={(e) => setManualStartTime(e.target.value)}
-                                        className="w-full p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors [color-scheme:dark]"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">End Time</label>
-                                    <input 
-                                        type="time" 
-                                        required
-                                        value={manualEndTime}
-                                        onChange={(e) => setManualEndTime(e.target.value)}
-                                        className="w-full p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors [color-scheme:dark]"
+                                        className="w-full p-3 bg-neutral-900 border border-neutral-800 rounded-xl text-white focus:border-white/20 focus:outline-none transition-colors [color-scheme:dark] min-h-[48px] appearance-none"
                                     />
                                 </div>
                             </div>
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Repetition</label>
+                                <SwipeSelect
+                                    value={manualRepetition}
+                                    onChange={setManualRepetition}
+                                    options={[
+                                        { value: 'none', label: 'None' },
+                                        { value: 'daily', label: 'Daily' },
+                                        { value: 'weekly', label: 'Weekly' },
+                                        { value: 'monthly', label: 'Monthly' },
+                                        { value: 'yearly', label: 'Yearly' }
+                                    ]}
+                                />
+                            </div>
+                        </div>
 
-                            <button 
-                                type="submit" 
-                                className="w-full py-4 bg-white text-black rounded-2xl font-bold text-lg hover:bg-neutral-200 active:scale-[0.98] transition-all duration-200 mt-2"
-                            >
-                                Add Event
-                            </button>
-                        </form>
-                    )}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">Start Time</label>
+                                <TimeWheel 
+                                    value={manualStartTime}
+                                    onChange={setManualStartTime}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-neutral-500 mb-1.5 ml-1">End Time</label>
+                                <TimeWheel 
+                                    value={manualEndTime}
+                                    onChange={setManualEndTime}
+                                />
+                            </div>
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            className="w-full py-4 bg-white text-black rounded-2xl font-bold text-lg hover:bg-neutral-200 active:scale-[0.98] transition-all duration-200 mt-2 min-h-[56px]"
+                        >
+                            Add Event
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>,

@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarEvent, EventType } from '../types';
 import { useSwipeGesture } from '../hooks/useSwipeGesture';
+import SwipeSelect from './SwipeSelect';
+import TimeWheel from './TimeWheel';
 
 interface EditEventModalProps {
   event: CalendarEvent | null;
@@ -128,15 +130,12 @@ const EditEventModal: React.FC<EditEventModalProps> = ({ event, isOpen, onClose,
             </div>
             <div>
               <label className="block text-[10px] font-semibold text-neutral-400 mb-1.5 ml-1">Type</label>
-              <select 
-                value={type}
-                onChange={(e) => setType(e.target.value as EventType)}
-                className="w-full p-2 bg-[#1C1C1E] border border-white/10 rounded-xl text-white text-xs focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all appearance-none"
-              >
-                 {Object.values(EventType).map(t => (
-                     <option key={t} value={t}>{t}</option>
-                 ))}
-              </select>
+              <SwipeSelect
+                  value={type}
+                  onChange={(val) => setType(val as EventType)}
+                  options={Object.values(EventType).map(t => ({ value: t, label: t }))}
+                  className="min-h-[38px]"
+              />
             </div>
           </div>
 
@@ -144,22 +143,16 @@ const EditEventModal: React.FC<EditEventModalProps> = ({ event, isOpen, onClose,
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label className="block text-[10px] font-semibold text-neutral-400 mb-1.5 ml-1">Start</label>
-              <input 
-                type="time" 
-                required
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full p-2 bg-[#1C1C1E] border border-white/10 rounded-xl text-white text-xs focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all [color-scheme:dark]"
+              <TimeWheel 
+                  value={startTime}
+                  onChange={setStartTime}
               />
             </div>
             <div>
               <label className="block text-[10px] font-semibold text-neutral-400 mb-1.5 ml-1">End</label>
-              <input 
-                type="time" 
-                required
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full p-2 bg-[#1C1C1E] border border-white/10 rounded-xl text-white text-xs focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all [color-scheme:dark]"
+              <TimeWheel 
+                  value={endTime}
+                  onChange={setEndTime}
               />
             </div>
           </div>

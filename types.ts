@@ -37,4 +37,5 @@ export interface UserSettings {
   theme: 'light' | 'dark';
   isGoogleConnected: boolean;
   hasCompletedTour: boolean;
+  reminderTime: number; // in minutes
 }
